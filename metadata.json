@@ -1,0 +1,6 @@
+{
+  "name": "Tambola Game Studio",
+  "description": "Full Tambola & Housie 90-ball Bingo game app with automatic caller engine, interactive ticket dabbing, instant claim verifier, AI bot rooms, custom ticket generator, and game statistics.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
