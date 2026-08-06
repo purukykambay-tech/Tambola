@@ -164,3 +164,26 @@ data class SavedTicketEntity(
     val gridJson: String, // JSON representation of 3x9 grid
     val createdAt: Long = System.currentTimeMillis()
 )
+
+data class GameRoom(
+    val id: String,
+    val title: String,
+    val hostName: String,
+    val category: String, // "Public", "Quick 90", "High Roller"
+    val prizeAmount: Int,
+    val entryFee: Int = 0,
+    val currentPlayers: Int,
+    val maxPlayers: Int,
+    val isLive: Boolean = true,
+    val isJackpot: Boolean = false,
+    val iconEmoji: String = "👑"
+)
+
+data class RazorpayTransaction(
+    val paymentId: String,
+    val amount: Int,
+    val status: String = "SUCCESS",
+    val paymentMethod: String = "UPI (GPay)",
+    val timestampMs: Long = System.currentTimeMillis()
+)
+

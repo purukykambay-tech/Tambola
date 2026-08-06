@@ -6,7 +6,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
-import androidx.compose.animation.with
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -60,7 +60,9 @@ import com.example.model.CallerPhrases
 import com.example.ui.theme.AmberGold
 import com.example.ui.theme.CoralRed
 import com.example.ui.theme.EmeraldGreen
-import com.example.ui.theme.RoyalPurple
+import com.example.ui.theme.SleekPurple
+import com.example.ui.theme.SleekPurpleContainer
+import com.example.ui.theme.SleekPurpleDark
 
 @OptIn(ExperimentalAnimationApi::class, ExperimentalLayoutApi::class)
 @Composable
@@ -96,7 +98,7 @@ fun CallerBoardView(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(16.dp)),
-                color = RoyalPurple
+                color = SleekPurpleContainer
             ) {
                 Column(
                     modifier = Modifier.padding(16.dp),
@@ -108,7 +110,7 @@ fun CallerBoardView(
                             letterSpacing = 1.5.sp,
                             fontWeight = FontWeight.Bold
                         ),
-                        color = AmberGold
+                        color = SleekPurpleDark
                     )
 
                     Spacer(modifier = Modifier.height(12.dp))
@@ -118,14 +120,14 @@ fun CallerBoardView(
                         modifier = Modifier
                             .size(90.dp)
                             .clip(CircleShape)
-                            .background(AmberGold)
+                            .background(SleekPurple)
                             .border(4.dp, Color.White, CircleShape),
                         contentAlignment = Alignment.Center
                     ) {
                         AnimatedContent(
                             targetState = currentCalledNumber,
                             transitionSpec = {
-                                (scaleIn() + fadeIn()) with (scaleOut() + fadeOut())
+                                (scaleIn() + fadeIn()) togetherWith (scaleOut() + fadeOut())
                             }
                         ) { num ->
                             Text(
@@ -134,7 +136,7 @@ fun CallerBoardView(
                                     fontSize = 42.sp,
                                     fontWeight = FontWeight.ExtraBold
                                 ),
-                                color = Color.Black
+                                color = Color.White
                             )
                         }
                     }
@@ -145,7 +147,7 @@ fun CallerBoardView(
                     Text(
                         text = currentCalledNumber?.let { CallerPhrases.getPhrase(it) } ?: "Tap Next or Start Auto-Draw",
                         style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                        color = Color.White,
+                        color = SleekPurpleDark,
                         textAlign = TextAlign.Center
                     )
                 }

@@ -26,7 +26,7 @@ abstract class TambolaDatabase : RoomDatabase() {
                     TambolaDatabase::class.java,
                     "tambola_database"
                 )
-                    .fallbackToDestructiveMigration()
+                    .fallbackToDestructiveMigration(dropAllTables = true)
                     .build()
                 INSTANCE = instance
                 instance

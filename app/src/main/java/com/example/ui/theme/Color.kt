@@ -2,22 +2,29 @@ package com.example.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-val RoyalPurple = Color(0xFF4A148C)
-val PurpleVariant = Color(0xFF7B1FA2)
+val SleekPurple = Color(0xFF6750A4)
+val RoyalPurple = Color(0xFF5A189A)
+val SleekPurpleDark = Color(0xFF21005D)
+val SleekPurpleContainer = Color(0xFFEADDFF)
+val SleekPurpleLight = Color(0xFFD0BCFF)
+
+val SleekBackground = Color(0xFFFDF7FF)
+val SleekSurface = Color(0xFFFFFFFF)
+val SleekSurfaceVariant = Color(0xFFF3EDF7)
+val SleekBorder = Color(0xFFE6E0E9)
+val SleekBorderDark = Color(0xFFCAC4D0)
+
+val SleekText = Color(0xFF1D1B20)
+val SleekTextSecondary = Color(0xFF49454F)
+
 val AmberGold = Color(0xFFFFB300)
 val AmberLight = Color(0xFFFFF8E1)
-val EmeraldGreen = Color(0xFF2E7D32)
-val CoralRed = Color(0xFFD32F2F)
+val EmeraldGreen = Color(0xFF4CAF50)
+val CoralRed = Color(0xFFB3261E)
 
-val DarkBackground = Color(0xFF120B24)
-val DarkSurface = Color(0xFF1F1638)
-val DarkSurfaceVariant = Color(0xFF2C204D)
-
-val LightBackground = Color(0xFFF6F4FB)
-val LightSurface = Color(0xFFFFFFFF)
-
-val TicketCellBlank = Color(0xFFF0ECF8)
+val TicketCellBlank = Color(0xFFF3EDF7)
 val TicketCellFilled = Color(0xFFFFFFFF)
-val TicketCellMarked = Color(0xFFFFC107)
+val TicketCellMarked = Color(0xFF6750A4)
 val TicketCellDabbed = Color(0xFF4CAF50)
+
 

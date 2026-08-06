@@ -25,16 +25,101 @@ import kotlinx.coroutines.launch
 import java.util.Locale
 import kotlin.random.Random
 
+import com.example.model.GameRoom
+import com.example.model.RazorpayTransaction
+
 enum class ActiveTab {
+    LOBBY,
     SOLO_BOT_ROOM,
     CALLER_BOARD,
     CLAIM_VERIFIER,
     TICKET_GENERATOR,
-    GAME_HISTORY
+    GAME_HISTORY,
+    ADMIN_PANEL
 }
 
 data class TambolaUiState(
-    val activeTab: ActiveTab = ActiveTab.SOLO_BOT_ROOM,
+    val activeTab: ActiveTab = ActiveTab.LOBBY,
+    // Wallet & User Profile
+    val walletBalance: Int = 1250,
+    val userName: String = "HousieSphere",
+    val userMobileNumber: String = "+91 98765 43210",
+    val isLoggedIn: Boolean = true,
+    val isAuthModalVisible: Boolean = false,
+    val authStep: Int = 1, // 1: Enter Mobile, 2: Enter OTP
+    val tempMobileInput: String = "",
+    val otpInput: String = "",
+    val authStatusMessage: String? = null,
+
+    // Razorpay Integration
+    val isRazorpayModalVisible: Boolean = false,
+    val razorpayTransactions: List<RazorpayTransaction> = listOf(
+        RazorpayTransaction("pay_Rzp982341", 500, "SUCCESS", "UPI (Google Pay)", System.currentTimeMillis() - 86400000),
+        RazorpayTransaction("pay_Rzp751920", 750, "SUCCESS", "Razorpay UPI", System.currentTimeMillis() - 172800000)
+    ),
+
+    // Lobby & Active Rooms
+    val selectedCategory: String = "All",
+    val activeRooms: List<GameRoom> = listOf(
+        GameRoom(
+            id = "room-1",
+            title = "Mega Amber Jackpot 90",
+            hostName = "HousieMaster Pro",
+            category = "Public",
+            prizeAmount = 25000,
+            entryFee = 50,
+            currentPlayers = 42,
+            maxPlayers = 100,
+            isLive = true,
+            isJackpot = true,
+            iconEmoji = "👑"
+        ),
+        GameRoom(
+            id = "room-2",
+            title = "Quick 5 Speed Housie",
+            hostName = "SpeedyCaller",
+            category = "Quick 90",
+            prizeAmount = 5000,
+            entryFee = 20,
+            currentPlayers = 18,
+            maxPlayers = 50,
+            isLive = true,
+            isJackpot = false,
+            iconEmoji = "⚡"
+        ),
+        GameRoom(
+            id = "room-3",
+            title = "High Rollers VIP 90",
+            hostName = "VIP Host",
+            category = "High Roller",
+            prizeAmount = 50000,
+            entryFee = 200,
+            currentPlayers = 80,
+            maxPlayers = 100,
+            isLive = true,
+            isJackpot = true,
+            iconEmoji = "💎"
+        ),
+        GameRoom(
+            id = "room-4",
+            title = "Evening Bonanza 90",
+            hostName = "TambolaKing",
+            category = "Public",
+            prizeAmount = 10000,
+            entryFee = 30,
+            currentPlayers = 12,
+            maxPlayers = 50,
+            isLive = true,
+            isJackpot = false,
+            iconEmoji = "🌟"
+        )
+    ),
+    val currentJoinedRoom: GameRoom? = null,
+
+    // Admin Control Panel
+    val isAdminMode: Boolean = true,
+    val totalRevenueCollected: Int = 14500,
+
     // Caller Deck & Draw State
     val calledNumbers: List<Int> = emptyList(),
     val remainingNumbers: List<Int> = (1..90).toList().shuffled(),
@@ -60,7 +145,7 @@ data class TambolaUiState(
 
     // Room Chat & Event Feed
     val chatMessages: List<RoomChatMessage> = listOf(
-        RoomChatMessage("1", "Host", "Welcome to Tambola Studio! Room open. Match starting...", isSystem = true)
+        RoomChatMessage("1", "Host", "Welcome to HousieSphere! Room open. Match starting...", isSystem = true)
     ),
 
     // Active Verification Modal Result
@@ -476,6 +561,148 @@ class TambolaViewModel(application: Application) : AndroidViewModel(application)
         viewModelScope.launch {
             repository.clearHistory()
         }
+    }
+
+    // --- Mobile Auth Methods ---
+    fun openAuthModal() {
+        _uiState.update { it.copy(isAuthModalVisible = true, authStep = 1, authStatusMessage = null) }
+    }
+
+    fun closeAuthModal() {
+        _uiState.update { it.copy(isAuthModalVisible = false) }
+    }
+
+    fun sendMobileOtp(mobile: String) {
+        val cleanMobile = mobile.trim()
+        if (cleanMobile.length < 10) {
+            _uiState.update { it.copy(authStatusMessage = "Please enter a valid 10-digit mobile number") }
+            return
+        }
+        val formatted = if (cleanMobile.startsWith("+91")) cleanMobile else "+91 $cleanMobile"
+        _uiState.update {
+            it.copy(
+                tempMobileInput = formatted,
+                authStep = 2,
+                otpInput = "123456", // Pre-fill test OTP for seamless testing
+                authStatusMessage = "OTP sent successfully to $formatted! (Default: 123456)"
+            )
+        }
+    }
+
+    fun verifyMobileOtp(otp: String) {
+        if (otp.length < 4) {
+            _uiState.update { it.copy(authStatusMessage = "Invalid OTP entered. Enter 123456 to verify.") }
+            return
+        }
+        _uiState.update {
+            it.copy(
+                isLoggedIn = true,
+                userMobileNumber = it.tempMobileInput.ifBlank { "+91 98765 43210" },
+                isAuthModalVisible = false,
+                authStatusMessage = null
+            )
+        }
+        addChatMessage("System", "📱 Mobile login verified successfully for ${uiState.value.userMobileNumber}!", isSystem = true)
+    }
+
+    fun logoutUser() {
+        _uiState.update {
+            it.copy(
+                isLoggedIn = false,
+                userMobileNumber = "Not Logged In"
+            )
+        }
+        addChatMessage("System", "Logged out of HousieSphere account.", isSystem = true)
+    }
+
+    // --- Razorpay Payment Methods ---
+    fun openRazorpayModal() {
+        if (!uiState.value.isLoggedIn) {
+            openAuthModal()
+            return
+        }
+        _uiState.update { it.copy(isRazorpayModalVisible = true) }
+    }
+
+    fun closeRazorpayModal() {
+        _uiState.update { it.copy(isRazorpayModalVisible = false) }
+    }
+
+    fun processRazorpayPayment(amount: Int, paymentMethod: String) {
+        val payId = "pay_Rzp" + Random.nextInt(100000, 999999)
+        val newTx = RazorpayTransaction(
+            paymentId = payId,
+            amount = amount,
+            status = "SUCCESS",
+            paymentMethod = paymentMethod,
+            timestampMs = System.currentTimeMillis()
+        )
+
+        _uiState.update { state ->
+            state.copy(
+                walletBalance = state.walletBalance + amount,
+                razorpayTransactions = listOf(newTx) + state.razorpayTransactions,
+                totalRevenueCollected = state.totalRevenueCollected + amount,
+                isRazorpayModalVisible = false
+            )
+        }
+
+        addChatMessage("Razorpay 💳", "Payment of ₹$amount successful! (Ref: $payId via $paymentMethod)", isSystem = true)
+    }
+
+    // --- Lobby & Room Category Filter ---
+    fun setSelectedCategory(category: String) {
+        _uiState.update { it.copy(selectedCategory = category) }
+    }
+
+    fun joinRoom(room: GameRoom) {
+        if (uiState.value.walletBalance < room.entryFee) {
+            openRazorpayModal()
+            return
+        }
+        if (room.entryFee > 0) {
+            _uiState.update { it.copy(walletBalance = it.walletBalance - room.entryFee) }
+        }
+        _uiState.update {
+            it.copy(
+                currentJoinedRoom = room,
+                activeTab = ActiveTab.SOLO_BOT_ROOM
+            )
+        }
+        resetGame()
+        addChatMessage("Host 🎙️", "Joined ${room.title}! Good luck!", isSystem = true)
+    }
+
+    // --- Admin Panel Actions ---
+    fun createRoomByAdmin(
+        title: String,
+        hostName: String,
+        category: String,
+        prizeAmount: Int,
+        entryFee: Int,
+        isJackpot: Boolean
+    ) {
+        val newRoom = GameRoom(
+            id = "room-${System.currentTimeMillis()}",
+            title = title,
+            hostName = hostName,
+            category = category,
+            prizeAmount = prizeAmount,
+            entryFee = entryFee,
+            currentPlayers = 1,
+            maxPlayers = 100,
+            isLive = true,
+            isJackpot = isJackpot,
+            iconEmoji = if (isJackpot) "👑" else "⚡"
+        )
+        _uiState.update { state ->
+            state.copy(activeRooms = listOf(newRoom) + state.activeRooms)
+        }
+        addChatMessage("Admin 🛠️", "Created new room: '$title' with Prize ₹$prizeAmount", isSystem = true)
+    }
+
+    fun toggleAdminMode() {
+        _uiState.update { it.copy(isAdminMode = !it.isAdminMode) }
     }
 
     override fun onCleared() {

@@ -5,16 +5,15 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AdminPanelSettings
+import androidx.compose.material.icons.filled.CellTower
 import androidx.compose.material.icons.filled.ConfirmationNumber
 import androidx.compose.material.icons.filled.FactCheck
+import androidx.compose.material.icons.filled.Forum
 import androidx.compose.material.icons.filled.GridOn
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.SportsEsports
@@ -38,9 +37,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.ui.components.ClaimVerificationModal
+import com.example.ui.components.MobileAuthModal
+import com.example.ui.components.RazorpayModal
+import com.example.ui.screens.AdminPanelScreen
 import com.example.ui.screens.CallerScreen
 import com.example.ui.screens.GamePlayScreen
 import com.example.ui.screens.HistoryScreen
+import com.example.ui.screens.LobbyScreen
 import com.example.ui.screens.TicketGeneratorScreen
 import com.example.ui.screens.VerifierScreen
 import com.example.ui.theme.AmberGold
@@ -63,88 +66,26 @@ class MainActivity : ComponentActivity() {
                 val state by viewModel.uiState.collectAsStateWithLifecycle()
 
                 Scaffold(
-                    topBar = {
-                        TopAppBar(
-                            title = {
-                                Text(
-                                    text = "Tambola Game Studio",
-                                    fontWeight = FontWeight.ExtraBold,
-                                    color = Color.White
-                                )
-                            },
-                            actions = {
-                                Surface(
-                                    shape = androidx.compose.foundation.shape.CircleShape,
-                                    color = AmberGold,
-                                    modifier = Modifier.padding(end = 12.dp)
-                                ) {
-                                    Text(
-                                        text = "${state.calledNumbers.size} Called",
-                                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                                        color = Color.Black,
-                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
-                                    )
-                                }
-                            },
-                            colors = TopAppBarDefaults.topAppBarColors(
-                                containerColor = RoyalPurple
-                            )
-                        )
-                    },
                     bottomBar = {
                         NavigationBar(
                             containerColor = MaterialTheme.colorScheme.surface,
                             tonalElevation = 8.dp
                         ) {
                             NavigationBarItem(
-                                selected = state.activeTab == ActiveTab.SOLO_BOT_ROOM,
-                                onClick = { viewModel.selectTab(ActiveTab.SOLO_BOT_ROOM) },
+                                selected = state.activeTab == ActiveTab.LOBBY,
+                                onClick = { viewModel.selectTab(ActiveTab.LOBBY) },
                                 icon = {
                                     Icon(
                                         imageVector = Icons.Default.SportsEsports,
-                                        contentDescription = "Play"
+                                        contentDescription = "Lobby"
                                     )
                                 },
-                                label = { Text("Play Room") },
+                                label = { Text("Lobby") },
                                 colors = NavigationBarItemDefaults.colors(
-                                    selectedIconColor = RoyalPurple,
-                                    indicatorColor = AmberGold
+                                    selectedIconColor = Color(0xFFE66700),
+                                    indicatorColor = AmberGold.copy(alpha = 0.3f)
                                 ),
-                                modifier = Modifier.testTag("nav_play_room")
-                            )
-
-                            NavigationBarItem(
-                                selected = state.activeTab == ActiveTab.CALLER_BOARD,
-                                onClick = { viewModel.selectTab(ActiveTab.CALLER_BOARD) },
-                                icon = {
-                                    Icon(
-                                        imageVector = Icons.Default.GridOn,
-                                        contentDescription = "Caller"
-                                    )
-                                },
-                                label = { Text("Caller Board") },
-                                colors = NavigationBarItemDefaults.colors(
-                                    selectedIconColor = RoyalPurple,
-                                    indicatorColor = AmberGold
-                                ),
-                                modifier = Modifier.testTag("nav_caller_board")
-                            )
-
-                            NavigationBarItem(
-                                selected = state.activeTab == ActiveTab.CLAIM_VERIFIER,
-                                onClick = { viewModel.selectTab(ActiveTab.CLAIM_VERIFIER) },
-                                icon = {
-                                    Icon(
-                                        imageVector = Icons.Default.FactCheck,
-                                        contentDescription = "Verifier"
-                                    )
-                                },
-                                label = { Text("Verifier") },
-                                colors = NavigationBarItemDefaults.colors(
-                                    selectedIconColor = RoyalPurple,
-                                    indicatorColor = AmberGold
-                                ),
-                                modifier = Modifier.testTag("nav_verifier")
+                                modifier = Modifier.testTag("nav_lobby")
                             )
 
                             NavigationBarItem(
@@ -153,32 +94,66 @@ class MainActivity : ComponentActivity() {
                                 icon = {
                                     Icon(
                                         imageVector = Icons.Default.ConfirmationNumber,
-                                        contentDescription = "Generator"
+                                        contentDescription = "Tickets"
                                     )
                                 },
-                                label = { Text("Generator") },
+                                label = { Text("Tickets") },
                                 colors = NavigationBarItemDefaults.colors(
-                                    selectedIconColor = RoyalPurple,
-                                    indicatorColor = AmberGold
+                                    selectedIconColor = Color(0xFFE66700),
+                                    indicatorColor = AmberGold.copy(alpha = 0.3f)
                                 ),
-                                modifier = Modifier.testTag("nav_generator")
+                                modifier = Modifier.testTag("nav_tickets")
                             )
 
                             NavigationBarItem(
-                                selected = state.activeTab == ActiveTab.GAME_HISTORY,
-                                onClick = { viewModel.selectTab(ActiveTab.GAME_HISTORY) },
+                                selected = state.activeTab == ActiveTab.CALLER_BOARD || state.activeTab == ActiveTab.SOLO_BOT_ROOM,
+                                onClick = { viewModel.selectTab(ActiveTab.CALLER_BOARD) },
                                 icon = {
                                     Icon(
-                                        imageVector = Icons.Default.History,
-                                        contentDescription = "History"
+                                        imageVector = Icons.Default.CellTower,
+                                        contentDescription = "Live Board"
                                     )
                                 },
-                                label = { Text("History") },
+                                label = { Text("Live Board") },
                                 colors = NavigationBarItemDefaults.colors(
-                                    selectedIconColor = RoyalPurple,
-                                    indicatorColor = AmberGold
+                                    selectedIconColor = Color(0xFFE66700),
+                                    indicatorColor = AmberGold.copy(alpha = 0.3f)
                                 ),
-                                modifier = Modifier.testTag("nav_history")
+                                modifier = Modifier.testTag("nav_live_board")
+                            )
+
+                            NavigationBarItem(
+                                selected = state.activeTab == ActiveTab.CLAIM_VERIFIER,
+                                onClick = { viewModel.selectTab(ActiveTab.CLAIM_VERIFIER) },
+                                icon = {
+                                    Icon(
+                                        imageVector = Icons.Default.Forum,
+                                        contentDescription = "Chat & Claims"
+                                    )
+                                },
+                                label = { Text("Chat & Claims") },
+                                colors = NavigationBarItemDefaults.colors(
+                                    selectedIconColor = Color(0xFFE66700),
+                                    indicatorColor = AmberGold.copy(alpha = 0.3f)
+                                ),
+                                modifier = Modifier.testTag("nav_chat_claims")
+                            )
+
+                            NavigationBarItem(
+                                selected = state.activeTab == ActiveTab.ADMIN_PANEL,
+                                onClick = { viewModel.selectTab(ActiveTab.ADMIN_PANEL) },
+                                icon = {
+                                    Icon(
+                                        imageVector = Icons.Default.AdminPanelSettings,
+                                        contentDescription = "Admin"
+                                    )
+                                },
+                                label = { Text("Admin") },
+                                colors = NavigationBarItemDefaults.colors(
+                                    selectedIconColor = Color(0xFFE66700),
+                                    indicatorColor = AmberGold.copy(alpha = 0.3f)
+                                ),
+                                modifier = Modifier.testTag("nav_admin")
                             )
                         }
                     },
@@ -190,6 +165,16 @@ class MainActivity : ComponentActivity() {
                             .padding(innerPadding)
                     ) {
                         when (state.activeTab) {
+                            ActiveTab.LOBBY -> {
+                                LobbyScreen(
+                                    state = state,
+                                    onOpenAuthModal = viewModel::openAuthModal,
+                                    onOpenRazorpayModal = viewModel::openRazorpayModal,
+                                    onSelectCategory = viewModel::setSelectedCategory,
+                                    onJoinRoom = viewModel::joinRoom,
+                                    onNavigateToTab = viewModel::selectTab
+                                )
+                            }
                             ActiveTab.SOLO_BOT_ROOM -> {
                                 GamePlayScreen(
                                     state = state,
@@ -240,7 +225,35 @@ class MainActivity : ComponentActivity() {
                                     onClearHistory = viewModel::clearHistory
                                 )
                             }
+                            ActiveTab.ADMIN_PANEL -> {
+                                AdminPanelScreen(
+                                    state = state,
+                                    onCreateRoom = viewModel::createRoomByAdmin,
+                                    onCallNextNumber = viewModel::callNextNumber,
+                                    onBroadcastMessage = { msg -> viewModel.addChatMessage("Admin", msg, isSystem = true) },
+                                    onResetGame = viewModel::resetGame
+                                )
+                            }
                         }
+
+                        // Mobile OTP Auth Modal
+                        MobileAuthModal(
+                            isVisible = state.isAuthModalVisible,
+                            authStep = state.authStep,
+                            currentMobile = state.userMobileNumber,
+                            statusMessage = state.authStatusMessage,
+                            onSendOtp = viewModel::sendMobileOtp,
+                            onVerifyOtp = viewModel::verifyMobileOtp,
+                            onDismiss = viewModel::closeAuthModal
+                        )
+
+                        // Razorpay Payment Deposit Modal
+                        RazorpayModal(
+                            isVisible = state.isRazorpayModalVisible,
+                            currentWalletBalance = state.walletBalance,
+                            onPaymentSuccess = viewModel::processRazorpayPayment,
+                            onDismiss = viewModel::closeRazorpayModal
+                        )
 
                         // Claim Verification Result Modal Dialog
                         state.lastClaimResult?.let { result ->
