@@ -21,6 +21,14 @@ val AmberGold = Color(0xFFFFB300)
 val AmberLight = Color(0xFFFFF8E1)
 val EmeraldGreen = Color(0xFF4CAF50)
 val CoralRed = Color(0xFFB3261E)
+val PurpleVariant = Color(0xFF7B2CBF)
+
+val DarkBackground = Color(0xFF121212)
+val DarkSurface = Color(0xFF1E1E1E)
+val DarkSurfaceVariant = Color(0xFF2C2C2C)
+
+val LightBackground = Color(0xFFFAF9F6)
+val LightSurface = Color(0xFFFFFFFF)
 
 val TicketCellBlank = Color(0xFFF3EDF7)
 val TicketCellFilled = Color(0xFFFFFFFF)
