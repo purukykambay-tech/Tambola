@@ -6,6 +6,8 @@ import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,6 +17,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -29,18 +32,30 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AddCircle
 import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.filled.Call
+import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.ConfirmationNumber
+import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.HeadsetMic
+import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Phone
+import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material.icons.filled.SupportAgent
+import androidx.compose.material.icons.filled.VerifiedUser
+import androidx.compose.ui.layout.ContentScale
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
@@ -64,9 +79,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.example.model.GameRoom
+import com.example.ui.components.UserWalletCard
+import com.example.ui.components.formatScheduledDateTime
+import com.example.ui.components.getRelativeRemainingTime
 import com.example.ui.theme.AmberGold
 import com.example.ui.theme.EmeraldGreen
 import com.example.ui.theme.RoyalPurple
+import com.example.ui.theme.SleekPurple
 import com.example.viewmodel.ActiveTab
 import com.example.viewmodel.TambolaUiState
 
@@ -78,6 +97,8 @@ fun LobbyScreen(
     onSelectCategory: (String) -> Unit,
     onJoinRoom: (GameRoom) -> Unit,
     onNavigateToTab: (ActiveTab) -> Unit,
+    onOpenSettings: () -> Unit = {},
+    onOpenBuyTicketsModal: (GameRoom?) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -85,6 +106,7 @@ fun LobbyScreen(
 
     var selectedRoomForBooking by remember { mutableStateOf<GameRoom?>(null) }
     var selectedTicketCount by remember { mutableIntStateOf(1) }
+    var showRulesDialog by remember { mutableStateOf(false) }
 
     val displayedRooms = if (state.selectedCategory == "All") {
         state.activeRooms
@@ -111,20 +133,35 @@ fun LobbyScreen(
                     // Profile Left
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.clickable { onOpenAuthModal() }
+                        modifier = Modifier
+                            .clickable { onNavigateToTab(ActiveTab.PROFILE) }
+                            .testTag("lobby_profile_header_btn")
                     ) {
                         Surface(
                             shape = CircleShape,
                             color = Color(0xFFFFF0D4),
-                            modifier = Modifier.size(46.dp)
+                            border = androidx.compose.foundation.BorderStroke(1.5.dp, AmberGold),
+                            modifier = Modifier
+                                .size(46.dp)
+                                .clip(CircleShape)
                         ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Icon(
-                                    imageVector = Icons.Default.Person,
-                                    contentDescription = "Profile",
-                                    tint = Color(0xFFD48800),
-                                    modifier = Modifier.size(28.dp)
+                            if (!state.userProfile.avatarUri.isNullOrBlank()) {
+                                AsyncImage(
+                                    model = ImageRequest.Builder(context)
+                                        .data(state.userProfile.avatarUri)
+                                        .crossfade(true)
+                                        .build(),
+                                    contentDescription = "Profile Photo",
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier.fillMaxSize()
                                 )
+                            } else {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Text(
+                                        text = state.userProfile.avatarPreset.ifBlank { "👑" },
+                                        fontSize = 24.sp
+                                    )
+                                }
                             }
                         }
 
@@ -132,66 +169,101 @@ fun LobbyScreen(
 
                         Column {
                             Text(
-                                text = if (state.isLoggedIn) "LoggedIn: ${state.userMobileNumber.ifBlank { "+91 98765 43210" }}" else "Tap to Login",
+                                text = if (state.isLoggedIn) state.userMobileNumber.ifBlank { "Verified Player" } else "Tap for Profile",
                                 fontSize = 11.sp,
                                 color = Color.Gray
                             )
                             Text(
-                                text = if (state.isLoggedIn) state.userName else "Guest Player",
-                                fontSize = 17.sp,
+                                text = state.userProfile.nickname.ifBlank { state.userName },
+                                fontSize = 16.sp,
                                 fontWeight = FontWeight.ExtraBold,
                                 color = Color(0xFF1F1F1F)
                             )
                         }
                     }
 
-                    // Wallet Pill Right
-                    Surface(
-                        shape = RoundedCornerShape(24.dp),
-                        color = Color(0xFFFFF6E5),
-                        modifier = Modifier
-                            .border(1.dp, Color(0xFFF2D399), RoundedCornerShape(24.dp))
-                            .clickable { onOpenRazorpayModal() }
-                            .testTag("lobby_wallet_pill")
+                    // Wallet & Settings Row Right
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                        Surface(
+                            shape = RoundedCornerShape(24.dp),
+                            color = Color(0xFFFFF6E5),
+                            modifier = Modifier
+                                .border(1.dp, Color(0xFFF2D399), RoundedCornerShape(24.dp))
+                                .clickable { onOpenRazorpayModal() }
+                                .testTag("lobby_wallet_pill")
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.AccountBalanceWallet,
-                                contentDescription = "Wallet",
-                                tint = Color(0xFFD48800),
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = "₹${state.walletBalance}",
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFF2A2A2A)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Surface(
-                                shape = CircleShape,
-                                color = Color(0xFFE66700),
-                                modifier = Modifier.size(16.dp)
+                            Row(
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Box(contentAlignment = Alignment.Center) {
-                                    Icon(
-                                        imageVector = Icons.Default.Add,
-                                        contentDescription = "Add",
-                                        tint = Color.White,
-                                        modifier = Modifier.size(12.dp)
-                                    )
+                                Icon(
+                                    imageVector = Icons.Default.AccountBalanceWallet,
+                                    contentDescription = "Wallet",
+                                    tint = Color(0xFFD48800),
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "₹${state.walletBalance}",
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF2A2A2A)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Surface(
+                                    shape = CircleShape,
+                                    color = Color(0xFFE66700),
+                                    modifier = Modifier.size(16.dp)
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Icon(
+                                            imageVector = Icons.Default.Add,
+                                            contentDescription = "Add",
+                                            tint = Color.White,
+                                            modifier = Modifier.size(12.dp)
+                                        )
+                                    }
                                 }
+                            }
+                        }
+
+                        // Quick Settings Button
+                        Surface(
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.surfaceVariant,
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clickable { onOpenSettings() }
+                                .testTag("lobby_settings_btn")
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = Icons.Default.Settings,
+                                    contentDescription = "Settings",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(20.dp)
+                                )
                             }
                         }
                     }
                 }
             }
 
-            // --- 2. ADMIN SUPPORT CONTACT BANNER ---
+            // --- 2. USER WALLET WITH FIRESTORE SYNC & MOCK UPI PAYMENT TRIGGER ---
+            item {
+                UserWalletCard(
+                    walletBalance = state.walletBalance,
+                    userPhone = state.userMobileNumber.ifBlank { "+91 98765 43210" },
+                    isLoggedIn = state.isLoggedIn,
+                    recentTransactions = state.razorpayTransactions,
+                    onAddFundsClick = onOpenRazorpayModal
+                )
+            }
+
+            // --- 3. ADMIN SUPPORT CONTACT BANNER ---
             item {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
@@ -415,20 +487,77 @@ fun LobbyScreen(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Surface(
-                                shape = RoundedCornerShape(10.dp),
-                                color = Color(0xFFF5F3EF)
-                            ) {
-                                Text(
-                                    text = room.category,
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF666666),
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-                                )
+                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Surface(
+                                    shape = RoundedCornerShape(10.dp),
+                                    color = Color(0xFFF5F3EF)
+                                ) {
+                                    Text(
+                                        text = room.category,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF666666),
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                                    )
+                                }
+
+                                if (!room.isUnlimitedPlayers && room.ticketSlots.isNotEmpty()) {
+                                    val bookedCount = room.ticketSlots.count { it.isBooked }
+                                    Surface(
+                                        shape = RoundedCornerShape(10.dp),
+                                        color = SleekPurple.copy(alpha = 0.12f),
+                                        border = androidx.compose.foundation.BorderStroke(1.dp, SleekPurple.copy(alpha = 0.3f))
+                                    ) {
+                                        Text(
+                                            text = "🔒 $bookedCount/${room.ticketSlots.size} Slots Booked",
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.Black,
+                                            color = SleekPurple,
+                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
+                                        )
+                                    }
+                                } else if (room.isUnlimitedPlayers) {
+                                    Surface(
+                                        shape = RoundedCornerShape(10.dp),
+                                        color = RoyalPurple.copy(alpha = 0.08f)
+                                    ) {
+                                        Text(
+                                            text = "🌐 Unlimited",
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = RoyalPurple,
+                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
+                                        )
+                                    }
+                                }
                             }
 
-                            if (room.isLive) {
+                            if (room.scheduledStartTimeMs != null && room.scheduledStartTimeMs > System.currentTimeMillis()) {
+                                Surface(
+                                    shape = RoundedCornerShape(10.dp),
+                                    color = RoyalPurple.copy(alpha = 0.12f),
+                                    border = androidx.compose.foundation.BorderStroke(1.dp, RoyalPurple.copy(alpha = 0.3f))
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Schedule,
+                                            contentDescription = null,
+                                            tint = RoyalPurple,
+                                            modifier = Modifier.size(12.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text(
+                                            text = room.scheduledTimeString.ifBlank { formatScheduledDateTime(room.scheduledStartTimeMs) },
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.ExtraBold,
+                                            color = RoyalPurple
+                                        )
+                                    }
+                                }
+                            } else if (room.isLive) {
                                 Surface(
                                     shape = RoundedCornerShape(10.dp),
                                     color = Color(0xFFE8F5E9)
@@ -460,11 +589,42 @@ fun LobbyScreen(
                             color = Color(0xFF1F1F1F)
                         )
                         Spacer(modifier = Modifier.height(2.dp))
-                        Text(
-                            text = "Hosted by ${room.hostName}",
-                            fontSize = 12.sp,
-                            color = Color.Gray
-                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = "Hosted by ${room.hostName}",
+                                fontSize = 12.sp,
+                                color = Color.Gray
+                            )
+                            if (room.scheduledStartTimeMs != null && room.scheduledStartTimeMs > System.currentTimeMillis()) {
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "• Starts in ${getRelativeRemainingTime(room.scheduledStartTimeMs)}",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFFE66700)
+                                )
+                            }
+                        }
+
+                        if (room.prizeBreakdown.isNotEmpty()) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            LazyRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                items(room.prizeBreakdown.toList().take(4)) { (pName, pVal) ->
+                                    Surface(
+                                        shape = RoundedCornerShape(6.dp),
+                                        color = AmberGold.copy(alpha = 0.12f)
+                                    ) {
+                                        Text(
+                                            text = "$pName: ₹$pVal",
+                                            fontSize = 9.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color(0xFF8C5300),
+                                            modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
 
                         Spacer(modifier = Modifier.height(14.dp))
 
@@ -499,7 +659,7 @@ fun LobbyScreen(
                             }
 
                             Button(
-                                onClick = { selectedRoomForBooking = room },
+                                onClick = { onOpenBuyTicketsModal(room) },
                                 colors = ButtonDefaults.buttonColors(
                                     containerColor = Color(0xFFE66700),
                                     contentColor = Color.White
@@ -515,6 +675,228 @@ fun LobbyScreen(
                                     fontSize = 13.sp
                                 )
                             }
+                        }
+                    }
+                }
+            }
+
+            // --- 7. Direct Buy Tickets CTA Card ---
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = AmberGold.copy(alpha = 0.15f)),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, AmberGold.copy(alpha = 0.5f))
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(14.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "TICKET BOOKING & DIRECT PURCHASE",
+                                fontWeight = FontWeight.Black,
+                                fontSize = 13.sp,
+                                color = Color(0xFF5A4500)
+                            )
+                            Text(
+                                text = "Buy directly via Google Pay, Online UPI, or Wallet. Funds route directly to Admin Account.",
+                                fontSize = 11.sp,
+                                color = Color.Gray
+                            )
+                        }
+                        Button(
+                            onClick = { onOpenBuyTicketsModal(null) },
+                            colors = ButtonDefaults.buttonColors(containerColor = EmeraldGreen),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Text("BUY TICKETS", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                        }
+                    }
+                }
+            }
+
+            // --- 8. Official Club Calling & Support Section ---
+            item {
+                val org = state.adminOrgInfo
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    elevation = CardDefaults.cardElevation(2.dp)
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column {
+                                Text(
+                                    text = org.organizationName,
+                                    fontWeight = FontWeight.Black,
+                                    fontSize = 15.sp,
+                                    color = RoyalPurple
+                                )
+                                Text(
+                                    text = "Official Club Support & Player Helpline",
+                                    fontSize = 11.sp,
+                                    color = Color.Gray
+                                )
+                            }
+                            Icon(imageVector = Icons.Default.VerifiedUser, contentDescription = null, tint = RoyalPurple)
+                        }
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        // Calling and WhatsApp buttons
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            // Phone call
+                            OutlinedButton(
+                                onClick = {
+                                    val phone = org.supportPhone.ifBlank { "+919876543210" }
+                                    val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:$phone"))
+                                    context.startActivity(intent)
+                                },
+                                shape = RoundedCornerShape(10.dp),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Icon(imageVector = Icons.Default.Phone, contentDescription = null, modifier = Modifier.size(16.dp), tint = RoyalPurple)
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("Call Admin", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = RoyalPurple)
+                            }
+
+                            // WhatsApp
+                            OutlinedButton(
+                                onClick = {
+                                    val waNumber = org.supportWhatsapp.ifBlank { org.supportPhone }.replace(Regex("[^0-9]"), "")
+                                    val waIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://wa.me/$waNumber"))
+                                    context.startActivity(waIntent)
+                                },
+                                shape = RoundedCornerShape(10.dp),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Icon(imageVector = Icons.Default.Chat, contentDescription = null, modifier = Modifier.size(16.dp), tint = EmeraldGreen)
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("WhatsApp", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = EmeraldGreen)
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        // Address & Email row
+                        if (org.address.isNotBlank()) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(imageVector = Icons.Default.LocationOn, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(14.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(org.address, fontSize = 11.sp, color = Color.Gray)
+                            }
+                            Spacer(modifier = Modifier.height(4.dp))
+                        }
+
+                        if (org.supportEmail.isNotBlank()) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(imageVector = Icons.Default.Email, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(14.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(org.supportEmail, fontSize = 11.sp, color = Color.Gray)
+                            }
+                            Spacer(modifier = Modifier.height(8.dp))
+                        }
+
+                        // Rules & Regulations Button
+                        Button(
+                            onClick = { showRulesDialog = true },
+                            colors = ButtonDefaults.buttonColors(containerColor = RoyalPurple.copy(alpha = 0.12f), contentColor = RoyalPurple),
+                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Icon(imageVector = Icons.Default.Description, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("VIEW CLUB RULES & REGULATIONS", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                        }
+                    }
+                }
+            }
+        }
+
+        // --- OFFICIAL RULES & REGULATIONS DIALOG ---
+        if (showRulesDialog) {
+            Dialog(onDismissRequest = { showRulesDialog = false }) {
+                Card(
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp)
+                ) {
+                    Column(modifier = Modifier.padding(20.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "RULES & REGULATIONS",
+                                fontWeight = FontWeight.Black,
+                                fontSize = 16.sp,
+                                color = RoyalPurple
+                            )
+                            IconButton(onClick = { showRulesDialog = false }) {
+                                Icon(imageVector = Icons.Default.Settings, contentDescription = "Close", modifier = Modifier.size(18.dp))
+                            }
+                        }
+
+                        Text(
+                            text = state.adminOrgInfo.organizationName,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = AmberGold
+                        )
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = Color(0xFFF9F7FA),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(max = 280.dp)
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .padding(12.dp)
+                                    .verticalScroll(rememberScrollState())
+                            ) {
+                                Text(
+                                    text = state.adminOrgInfo.rulesAndRegulations,
+                                    fontSize = 12.sp,
+                                    color = Color(0xFF333333),
+                                    lineHeight = 18.sp
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        Button(
+                            onClick = { showRulesDialog = false },
+                            colors = ButtonDefaults.buttonColors(containerColor = RoyalPurple),
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Text("I UNDERSTAND & AGREE", fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -569,6 +951,29 @@ fun LobbyScreen(
                             fontSize = 12.sp,
                             color = Color.Gray
                         )
+
+                        if (room.scheduledStartTimeMs != null && room.scheduledStartTimeMs > System.currentTimeMillis()) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = RoyalPurple.copy(alpha = 0.1f),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, RoyalPurple.copy(alpha = 0.25f))
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(imageVector = Icons.Default.Schedule, contentDescription = null, tint = RoyalPurple, modifier = Modifier.size(14.dp))
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = "Scheduled: ${room.scheduledTimeString.ifBlank { formatScheduledDateTime(room.scheduledStartTimeMs) }}",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = RoyalPurple
+                                    )
+                                }
+                            }
+                        }
 
                         Spacer(modifier = Modifier.height(16.dp))
 

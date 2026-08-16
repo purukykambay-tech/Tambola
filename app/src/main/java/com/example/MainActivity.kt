@@ -9,6 +9,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountBalanceWallet
+import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.AdminPanelSettings
 import androidx.compose.material.icons.filled.CellTower
 import androidx.compose.material.icons.filled.ConfirmationNumber
@@ -36,17 +38,24 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.ui.components.BuyTicketsModal
 import com.example.ui.components.ClaimVerificationModal
+import com.example.ui.components.GameSettingsModal
 import com.example.ui.components.MobileAuthModal
 import com.example.ui.components.RazorpayModal
+import com.example.ui.components.WinnerNotificationToastBanner
+import com.example.ui.screens.AdminDashboard
 import com.example.ui.screens.AdminPanelScreen
 import com.example.ui.screens.AppLoginGateScreen
 import com.example.ui.screens.CallerScreen
+import com.example.ui.screens.GameHistoryScreen
 import com.example.ui.screens.GamePlayScreen
 import com.example.ui.screens.HistoryScreen
 import com.example.ui.screens.LobbyScreen
 import com.example.ui.screens.TicketGeneratorScreen
+import com.example.ui.screens.UserProfileScreen
 import com.example.ui.screens.VerifierScreen
+import com.example.ui.screens.WalletTransactionHistoryScreen
 import com.example.ui.theme.AmberGold
 import com.example.ui.theme.RoyalPurple
 import com.example.ui.theme.TambolaTheme
@@ -66,8 +75,30 @@ class MainActivity : ComponentActivity() {
             TambolaTheme {
                 val state by viewModel.uiState.collectAsStateWithLifecycle()
 
-                if (!state.isLoggedIn && !state.isAdminAuthenticated) {
-                    // GATE SCREEN: APP DOES NOT OPEN DIRECTLY
+                if (state.isStaffPortalOpen || state.isAdminAuthenticated || state.currentStaffUser != null) {
+                    // STAFF / ADMIN / MANAGER / AGENT PORTAL (Outside normal player app)
+                    AdminDashboard(
+                        state = state,
+                        onLoginAdmin = viewModel::loginAdmin,
+                        onLogoutAdmin = viewModel::logoutStaff,
+                        onCreateRoom = viewModel::createRoomByAdmin,
+                        onUpdateRoom = viewModel::updateAdminRoom,
+                        onDeleteRoom = viewModel::deleteAdminRoom,
+                        onUpdateGameConfig = viewModel::updateGameConfiguration,
+                        onBookTicketsForPlayer = viewModel::bookTicketsForPlayerByAdmin,
+                        onUpdateOrgInfo = viewModel::updateAdminOrganizationDetails,
+                        onCallNextNumber = viewModel::callNextNumber,
+                        onCallSpecificNumber = viewModel::callSpecificNumber,
+                        onCreateStaffUser = viewModel::createOrUpdateStaffUser,
+                        onToggleStaffBookingPermission = viewModel::toggleStaffBookingPermission,
+                        onToggleStaffCreationPermission = viewModel::toggleStaffCreationPermission,
+                        onDeleteStaffUser = viewModel::deleteStaffUser,
+                        onAgentBookTicket = viewModel::agentBookPlayerTicket,
+                        onBroadcastMessage = { msg -> viewModel.addChatMessage("Admin", msg, isSystem = true) },
+                        onResetGame = viewModel::resetGame
+                    )
+                } else if (!state.isLoggedIn) {
+                    // GATE SCREEN: APP DOES NOT OPEN DIRECTLY (Staff portal button in top right corner)
                     AppLoginGateScreen(
                         currentStep = state.authStep,
                         tempMobile = state.tempMobileInput,
@@ -75,10 +106,10 @@ class MainActivity : ComponentActivity() {
                         statusMessage = state.authStatusMessage,
                         onSendOtp = viewModel::sendMobileOtp,
                         onVerifyOtp = viewModel::verifyMobileOtp,
-                        onLoginAdmin = viewModel::loginAdmin
+                        onLoginStaff = { id, pass -> viewModel.loginStaff(id, pass) != null }
                     )
                 } else {
-                    // AUTHENTICATED APP INTERFACE
+                    // AUTHENTICATED PLAYER APP INTERFACE
                     Scaffold(
                         bottomBar = {
                             NavigationBar(
@@ -100,6 +131,23 @@ class MainActivity : ComponentActivity() {
                                         indicatorColor = AmberGold.copy(alpha = 0.3f)
                                     ),
                                     modifier = Modifier.testTag("nav_lobby")
+                                )
+
+                                NavigationBarItem(
+                                    selected = state.activeTab == ActiveTab.PROFILE,
+                                    onClick = { viewModel.selectTab(ActiveTab.PROFILE) },
+                                    icon = {
+                                        Icon(
+                                            imageVector = Icons.Default.AccountCircle,
+                                            contentDescription = "Profile"
+                                        )
+                                    },
+                                    label = { Text("Profile") },
+                                    colors = NavigationBarItemDefaults.colors(
+                                        selectedIconColor = Color(0xFFE66700),
+                                        indicatorColor = AmberGold.copy(alpha = 0.3f)
+                                    ),
+                                    modifier = Modifier.testTag("nav_profile")
                                 )
 
                                 NavigationBarItem(
@@ -135,40 +183,6 @@ class MainActivity : ComponentActivity() {
                                     ),
                                     modifier = Modifier.testTag("nav_live_board")
                                 )
-
-                                NavigationBarItem(
-                                    selected = state.activeTab == ActiveTab.CLAIM_VERIFIER,
-                                    onClick = { viewModel.selectTab(ActiveTab.CLAIM_VERIFIER) },
-                                    icon = {
-                                        Icon(
-                                            imageVector = Icons.Default.Forum,
-                                            contentDescription = "Chat & Claims"
-                                        )
-                                    },
-                                    label = { Text("Chat & Claims") },
-                                    colors = NavigationBarItemDefaults.colors(
-                                        selectedIconColor = Color(0xFFE66700),
-                                        indicatorColor = AmberGold.copy(alpha = 0.3f)
-                                    ),
-                                    modifier = Modifier.testTag("nav_chat_claims")
-                                )
-
-                                NavigationBarItem(
-                                    selected = state.activeTab == ActiveTab.ADMIN_PANEL,
-                                    onClick = { viewModel.selectTab(ActiveTab.ADMIN_PANEL) },
-                                    icon = {
-                                        Icon(
-                                            imageVector = Icons.Default.AdminPanelSettings,
-                                            contentDescription = "Admin"
-                                        )
-                                    },
-                                    label = { Text("Admin") },
-                                    colors = NavigationBarItemDefaults.colors(
-                                        selectedIconColor = Color(0xFFE66700),
-                                        indicatorColor = AmberGold.copy(alpha = 0.3f)
-                                    ),
-                                    modifier = Modifier.testTag("nav_admin")
-                                )
                             }
                         },
                         modifier = Modifier.fillMaxSize()
@@ -186,30 +200,63 @@ class MainActivity : ComponentActivity() {
                                         onOpenRazorpayModal = viewModel::openRazorpayModal,
                                         onSelectCategory = viewModel::setSelectedCategory,
                                         onJoinRoom = viewModel::joinRoom,
-                                        onNavigateToTab = viewModel::selectTab
+                                        onNavigateToTab = viewModel::selectTab,
+                                        onOpenSettings = viewModel::openSettingsModal,
+                                        onOpenBuyTicketsModal = { room -> viewModel.openBuyTicketsModal(room) }
+                                    )
+                                }
+                                ActiveTab.PROFILE -> {
+                                    UserProfileScreen(
+                                        state = state,
+                                        onUpdateNickname = viewModel::updateUserNickname,
+                                        onUpdateAvatarUri = viewModel::updateUserAvatarUri,
+                                        onUpdateAvatarPreset = viewModel::updateUserAvatarPreset,
+                                        onUpdateBio = viewModel::updateUserBio,
+                                        onOpenAuthModal = viewModel::openAuthModal,
+                                        onOpenRazorpayModal = viewModel::openRazorpayModal,
+                                        onNavigateBack = { viewModel.selectTab(ActiveTab.LOBBY) },
+                                        onLogoutUser = viewModel::logoutUser
+                                    )
+                                }
+                                ActiveTab.WALLET_HISTORY -> {
+                                    WalletTransactionHistoryScreen(
+                                        state = state,
+                                        onOpenDepositModal = viewModel::openRazorpayModal,
+                                        onWithdrawFunds = viewModel::withdrawFunds,
+                                        onNavigateBack = { viewModel.selectTab(ActiveTab.LOBBY) }
                                     )
                                 }
                                 ActiveTab.SOLO_BOT_ROOM -> {
                                     GamePlayScreen(
                                         state = state,
                                         onCallNextNumber = viewModel::callNextNumber,
+                                        onCallSpecificNumber = viewModel::callSpecificNumber,
                                         onToggleAutoCall = viewModel::toggleAutoCall,
+                                        onSetIntervalSec = viewModel::setAutoCallInterval,
                                         onSetTicketCount = viewModel::setTicketCount,
                                         onToggleMark = viewModel::toggleMarkNumber,
                                         onAutoMark = viewModel::autoMarkAllCalledNumbers,
+                                        onToggleAutoDab = viewModel::toggleAutoDab,
+                                        onOpenSettings = viewModel::openSettingsModal,
                                         onClaimPrize = viewModel::claimPrize,
                                         onSendMessage = { msg -> viewModel.addChatMessage("You", msg) },
-                                        onResetGame = viewModel::resetGame
+                                        onResetGame = viewModel::resetGame,
+                                        onBroadcastMessage = { msg -> viewModel.addChatMessage("Admin 📢", msg, isSystem = true) }
                                     )
                                 }
                                 ActiveTab.CALLER_BOARD -> {
                                     CallerScreen(
                                         state = state,
                                         onCallNext = viewModel::callNextNumber,
+                                        onCallSpecificNumber = viewModel::callSpecificNumber,
                                         onToggleAutoCall = viewModel::toggleAutoCall,
                                         onSetIntervalSec = viewModel::setAutoCallInterval,
                                         onToggleSound = viewModel::toggleSound,
-                                        onResetGame = viewModel::resetGame
+                                        onResetGame = viewModel::resetGame,
+                                        onToggleBackgroundService = viewModel::toggleFirestoreBackgroundCaller,
+                                        onDrawViaFirestore = viewModel::drawNextFirestoreGameNumber,
+                                        onResetFirestoreGame = viewModel::resetFirestoreGame,
+                                        onBroadcastMessage = { msg -> viewModel.addChatMessage("Admin 📢", msg, isSystem = true) }
                                     )
                                 }
                                 ActiveTab.CLAIM_VERIFIER -> {
@@ -229,25 +276,36 @@ class MainActivity : ComponentActivity() {
                                     TicketGeneratorScreen(
                                         state = state,
                                         onGenerateSheetOfSix = viewModel::generateSheetOfSix,
+                                        onGenerateSingleTicket = viewModel::generateSingleTicket,
                                         onSaveTicket = viewModel::saveGeneratedTicket
                                     )
                                 }
                                 ActiveTab.GAME_HISTORY -> {
-                                    HistoryScreen(
+                                    GameHistoryScreen(
                                         state = state,
                                         onDeleteTicket = viewModel::deleteSavedTicket,
                                         onClearHistory = viewModel::clearHistory
                                     )
                                 }
                                 ActiveTab.ADMIN_PANEL -> {
-                                    AdminPanelScreen(
+                                    AdminDashboard(
                                         state = state,
                                         onLoginAdmin = viewModel::loginAdmin,
-                                        onLogoutAdmin = viewModel::logoutAdmin,
+                                        onLogoutAdmin = viewModel::logoutStaff,
                                         onCreateRoom = viewModel::createRoomByAdmin,
                                         onUpdateRoom = viewModel::updateAdminRoom,
                                         onDeleteRoom = viewModel::deleteAdminRoom,
+                                        onForceCloseRoom = viewModel::forceCloseRoom,
+                                        onUpdateGameConfig = viewModel::updateGameConfiguration,
+                                        onBookTicketsForPlayer = viewModel::bookTicketsForPlayerByAdmin,
+                                        onUpdateOrgInfo = viewModel::updateAdminOrganizationDetails,
                                         onCallNextNumber = viewModel::callNextNumber,
+                                        onCallSpecificNumber = viewModel::callSpecificNumber,
+                                        onCreateStaffUser = viewModel::createOrUpdateStaffUser,
+                                        onToggleStaffBookingPermission = viewModel::toggleStaffBookingPermission,
+                                        onToggleStaffCreationPermission = viewModel::toggleStaffCreationPermission,
+                                        onDeleteStaffUser = viewModel::deleteStaffUser,
+                                        onAgentBookTicket = viewModel::agentBookPlayerTicket,
                                         onBroadcastMessage = { msg -> viewModel.addChatMessage("Admin", msg, isSystem = true) },
                                         onResetGame = viewModel::resetGame
                                     )
@@ -273,6 +331,17 @@ class MainActivity : ComponentActivity() {
                                 onDismiss = viewModel::closeRazorpayModal
                             )
 
+                            // Buy Tickets Modal (Direct Google Pay / Online Pay / Wallet with Admin Settlement)
+                            BuyTicketsModal(
+                                isVisible = state.isBuyTicketsModalVisible,
+                                state = state,
+                                room = state.selectedRoomForDirectBuy,
+                                onDismiss = viewModel::closeBuyTicketsModal,
+                                onBuyTicket = viewModel::buyTicketDirectly,
+                                onBookSpecificSlot = viewModel::bookSpecificRoomSlot,
+                                onOpenRazorpayTopup = viewModel::openRazorpayModal
+                            )
+
                             // Claim Verification Result Modal Dialog
                             state.lastClaimResult?.let { result ->
                                 ClaimVerificationModal(
@@ -280,6 +349,29 @@ class MainActivity : ComponentActivity() {
                                     onDismiss = viewModel::dismissClaimResult
                                 )
                             }
+
+                            // Game Settings Modal Dialog
+                            GameSettingsModal(
+                                isVisible = state.isSettingsModalVisible,
+                                isAutoDabEnabled = state.isAutoDabEnabled,
+                                isAutoCalling = state.isAutoCalling,
+                                isSoundEnabled = state.isSoundEnabled,
+                                autoCallIntervalSec = state.autoCallIntervalSec,
+                                onToggleAutoDab = viewModel::toggleAutoDab,
+                                onToggleAutoCalling = viewModel::toggleAutoCall,
+                                onToggleSound = viewModel::toggleSound,
+                                onSetIntervalSec = viewModel::setAutoCallInterval,
+                                onDismiss = viewModel::closeSettingsModal,
+                                isLoggedIn = state.isLoggedIn,
+                                userPhone = state.userMobileNumber,
+                                onLogoutUser = viewModel::logoutUser
+                            )
+
+                            // Real-time FCM Winner Alert Toast Banner Overlay
+                            WinnerNotificationToastBanner(
+                                payload = state.activeWinnerNotification,
+                                onDismiss = viewModel::dismissWinnerNotification
+                            )
                         }
                     }
                 }

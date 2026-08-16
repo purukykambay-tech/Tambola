@@ -72,6 +72,8 @@ fun CallerBoardView(
     isAutoCalling: Boolean,
     autoCallIntervalSec: Int,
     isSoundEnabled: Boolean,
+    autoCallCountdownProgress: Float = 0f,
+    autoCallRemainingMillis: Long = 0L,
     onCallNext: () -> Unit,
     onToggleAutoCall: () -> Unit,
     onSetIntervalSec: (Int) -> Unit,
@@ -223,6 +225,46 @@ fun CallerBoardView(
                 }
             }
 
+            // Live Countdown Progress Bar when auto calling
+            if (isAutoCalling) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(EmeraldGreen.copy(alpha = 0.1f))
+                        .padding(horizontal = 10.dp, vertical = 6.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = "Auto-Drawing...",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = EmeraldGreen
+                        )
+                        Text(
+                            text = "${String.format("%.1f", autoCallRemainingMillis / 1000f)}s / ${autoCallIntervalSec}s",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = EmeraldGreen
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(4.dp))
+                    androidx.compose.material3.LinearProgressIndicator(
+                        progress = { autoCallCountdownProgress },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(6.dp)
+                            .clip(RoundedCornerShape(3.dp)),
+                        color = EmeraldGreen,
+                        trackColor = EmeraldGreen.copy(alpha = 0.2f)
+                    )
+                }
+            }
+
             Spacer(modifier = Modifier.height(8.dp))
 
             // Auto Speed Selector Chips
@@ -232,15 +274,21 @@ fun CallerBoardView(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Auto Speed: ",
-                    style = MaterialTheme.typography.bodySmall,
+                    text = "Time Setting: ",
+                    style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                listOf(3, 5, 8, 10).forEach { interval ->
+                listOf(
+                    2 to "2s",
+                    3 to "3s",
+                    4 to "4s",
+                    6 to "6s",
+                    8 to "8s"
+                ).forEach { (interval, label) ->
                     FilterChip(
                         selected = autoCallIntervalSec == interval,
                         onClick = { onSetIntervalSec(interval) },
-                        label = { Text("${interval}s", fontSize = 12.sp) },
+                        label = { Text(label, fontSize = 11.sp) },
                         modifier = Modifier.padding(horizontal = 2.dp)
                     )
                 }

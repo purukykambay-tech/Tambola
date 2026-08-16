@@ -7,6 +7,8 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,11 +17,14 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AdminPanelSettings
@@ -54,14 +59,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.example.ui.theme.AmberGold
 import com.example.ui.theme.EmeraldGreen
 import com.example.ui.theme.RoyalPurple
@@ -74,21 +83,23 @@ fun AppLoginGateScreen(
     statusMessage: String?,
     onSendOtp: (String) -> Unit,
     onVerifyOtp: (String) -> Unit,
-    onLoginAdmin: (adminId: String, pass: String) -> Boolean,
+    onLoginStaff: (staffId: String, pass: String) -> Boolean,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val focusManager = LocalFocusManager.current
 
     // Local inputs for user OTP login
-    var mobileText by remember { mutableStateOf("9876543210") }
-    var otpText by remember { mutableStateOf("123456") }
+    var mobileText by remember { mutableStateOf("") }
+    var otpText by remember { mutableStateOf("") }
 
-    // State for Admin Login Dialog
-    var showAdminDialog by remember { mutableStateOf(false) }
-    var adminIdInput by remember { mutableStateOf("Admin") }
-    var adminPasswordInput by remember { mutableStateOf("udoipurtambola@2026") }
-    var isAdminPassVisible by remember { mutableStateOf(false) }
-    var adminErrorMsg by remember { mutableStateOf<String?>(null) }
+    // State for Staff / Admin Login Dialog
+    var showStaffDialog by remember { mutableStateOf(false) }
+    var staffIdInput by remember { mutableStateOf("") }
+    var staffPasswordInput by remember { mutableStateOf("") }
+    var isStaffPassVisible by remember { mutableStateOf(false) }
+    var staffErrorMsg by remember { mutableStateOf<String?>(null) }
 
     Box(
         modifier = modifier
@@ -106,11 +117,14 @@ fun AppLoginGateScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(20.dp),
+                .systemBarsPadding()
+                .imePadding()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 20.dp, vertical = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.SpaceBetween
+            verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
-            // TOP BAR with Admin Panel Corner Access Button
+            // TOP BAR with Staff / Admin Panel Corner Access Button (Outside Main App)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -141,9 +155,9 @@ fun AppLoginGateScreen(
                     )
                 }
 
-                // TOP RIGHT CORNER: ADMIN PANEL BUTTON
+                // TOP RIGHT CORNER: STAFF / ADMIN / AGENT / MANAGER PORTAL BUTTON
                 Button(
-                    onClick = { showAdminDialog = true },
+                    onClick = { showStaffDialog = true },
                     colors = ButtonDefaults.buttonColors(
                         containerColor = AmberGold,
                         contentColor = Color.Black
@@ -152,15 +166,15 @@ fun AppLoginGateScreen(
                     modifier = Modifier.testTag("admin_login_corner_btn")
                 ) {
                     Icon(
-                        imageVector = Icons.Default.AdminPanelSettings,
-                        contentDescription = "Admin Panel",
+                        imageVector = Icons.Default.Security,
+                        contentDescription = "Staff Portal",
                         modifier = Modifier.size(18.dp)
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = "ADMIN PANEL",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 12.sp
+                        text = "STAFF / ADMIN 🛡️",
+                        fontWeight = FontWeight.Black,
+                        fontSize = 11.sp
                     )
                 }
             }
@@ -219,7 +233,15 @@ fun AppLoginGateScreen(
                             label = { Text("Mobile Number") },
                             prefix = { Text("+91 ", fontWeight = FontWeight.Bold) },
                             leadingIcon = { Icon(imageVector = Icons.Default.Phone, contentDescription = null) },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone, imeAction = ImeAction.Done),
+                            keyboardActions = KeyboardActions(onDone = {
+                                keyboardController?.hide()
+                                focusManager.clearFocus()
+                                if (mobileText.length == 10) {
+                                    onSendOtp(mobileText)
+                                    Toast.makeText(context, "OTP Sent to +91 $mobileText!", Toast.LENGTH_SHORT).show()
+                                }
+                            }),
                             singleLine = true,
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -235,6 +257,8 @@ fun AppLoginGateScreen(
 
                         Button(
                             onClick = {
+                                keyboardController?.hide()
+                                focusManager.clearFocus()
                                 if (mobileText.length == 10) {
                                     onSendOtp(mobileText)
                                     Toast.makeText(context, "OTP Sent to +91 $mobileText!", Toast.LENGTH_SHORT).show()
@@ -255,16 +279,18 @@ fun AppLoginGateScreen(
                             Text("GET OTP & CONTINUE", fontWeight = FontWeight.Bold, fontSize = 15.sp)
                         }
 
-                        Spacer(modifier = Modifier.height(10.dp))
+                        Spacer(modifier = Modifier.height(8.dp))
 
                         TextButton(
                             onClick = {
+                                keyboardController?.hide()
+                                focusManager.clearFocus()
                                 onSendOtp("9876543210")
                                 onVerifyOtp("123456")
                             },
                             modifier = Modifier.testTag("login_guest_preview_btn")
                         ) {
-                            Text("⚡ EXPLORE AS GUEST (QUICK PREVIEW)", color = Color(0xFFE66700), fontWeight = FontWeight.ExtraBold, fontSize = 13.sp)
+                            Text("Play as Demo Player", color = RoyalPurple, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
                         }
                     } else {
                         // Step 2: OTP Input
@@ -281,8 +307,14 @@ fun AppLoginGateScreen(
                             value = otpText,
                             onValueChange = { if (it.length <= 6) otpText = it.filter { ch -> ch.isDigit() } },
                             label = { Text("Enter 6-Digit OTP") },
+                            placeholder = { Text("6-digit code") },
                             leadingIcon = { Icon(imageVector = Icons.Default.Lock, contentDescription = null) },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
+                            keyboardActions = KeyboardActions(onDone = {
+                                keyboardController?.hide()
+                                focusManager.clearFocus()
+                                onVerifyOtp(otpText)
+                            }),
                             singleLine = true,
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -297,11 +329,19 @@ fun AppLoginGateScreen(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            TextButton(onClick = { otpText = "123456" }) {
-                                Text("Auto-fill OTP (123456)", fontSize = 12.sp, color = RoyalPurple, fontWeight = FontWeight.Bold)
+                            TextButton(onClick = {
+                                keyboardController?.hide()
+                                focusManager.clearFocus()
+                                onSendOtp(mobileText.ifBlank { "9876543210" })
+                            }) {
+                                Text("Resend OTP", fontSize = 12.sp, color = RoyalPurple, fontWeight = FontWeight.Bold)
                             }
-                            TextButton(onClick = { onSendOtp(mobileText) }) {
-                                Text("Resend OTP", fontSize = 12.sp, color = Color.Gray)
+                            TextButton(onClick = {
+                                otpText = "123456"
+                                keyboardController?.hide()
+                                focusManager.clearFocus()
+                            }) {
+                                Text("Use Demo Code", fontSize = 12.sp, color = Color.Gray)
                             }
                         }
 
@@ -309,6 +349,8 @@ fun AppLoginGateScreen(
 
                         Button(
                             onClick = {
+                                keyboardController?.hide()
+                                focusManager.clearFocus()
                                 onVerifyOtp(otpText)
                                 Toast.makeText(context, "Welcome to HousieSphere!", Toast.LENGTH_SHORT).show()
                             },
@@ -355,9 +397,9 @@ fun AppLoginGateScreen(
             }
         }
 
-        // ADMIN LOGIN DIALOG (Top-Right Corner Triggered)
-        if (showAdminDialog) {
-            Dialog(onDismissRequest = { showAdminDialog = false }) {
+        // STAFF & ADMIN LOGIN DIALOG (Top-Right Corner Triggered)
+        if (showStaffDialog) {
+            Dialog(onDismissRequest = { showStaffDialog = false }) {
                 Card(
                     shape = RoundedCornerShape(24.dp),
                     colors = CardDefaults.cardColors(containerColor = Color.White),
@@ -380,8 +422,8 @@ fun AppLoginGateScreen(
                         ) {
                             Box(contentAlignment = Alignment.Center) {
                                 Icon(
-                                    imageVector = Icons.Default.AdminPanelSettings,
-                                    contentDescription = "Admin Security",
+                                    imageVector = Icons.Default.Security,
+                                    contentDescription = "Staff Security",
                                     tint = AmberGold,
                                     modifier = Modifier.size(32.dp)
                                 )
@@ -391,26 +433,70 @@ fun AppLoginGateScreen(
                         Spacer(modifier = Modifier.height(12.dp))
 
                         Text(
-                            text = "ADMIN PORTAL ACCESS",
+                            text = "STAFF & ADMIN PORTAL",
                             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.ExtraBold),
                             color = RoyalPurple
                         )
 
                         Text(
-                            text = "Enter Admin credentials to manage rooms, tickets & payments",
+                            text = "Sign in with your Admin, Manager, or Agent Login ID",
                             style = MaterialTheme.typography.bodySmall,
                             color = Color.Gray
                         )
 
-                        Spacer(modifier = Modifier.height(16.dp))
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        // Quick Fill Role Buttons for convenience
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Button(
+                                onClick = {
+                                    staffIdInput = "admin"
+                                    staffPasswordInput = "admin123"
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF3E8FF), contentColor = RoyalPurple),
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text("Admin", fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                            }
+                            Button(
+                                onClick = {
+                                    staffIdInput = "manager"
+                                    staffPasswordInput = "manager123"
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE0F2FE), contentColor = Color(0xFF0369A1)),
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text("Manager", fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                            }
+                            Button(
+                                onClick = {
+                                    staffIdInput = "agent1"
+                                    staffPasswordInput = "agent123"
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFDCFCE7), contentColor = EmeraldGreen),
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text("Agent", fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(14.dp))
 
                         // User ID Input
                         OutlinedTextField(
-                            value = adminIdInput,
-                            onValueChange = { adminIdInput = it },
-                            label = { Text("User ID") },
-                            leadingIcon = { Icon(imageVector = Icons.Default.Badge, contentDescription = null) },
+                            value = staffIdInput,
+                            onValueChange = { staffIdInput = it },
+                            label = { Text("Staff / Admin Login ID") },
+                            placeholder = { Text("admin, manager, or agent1") },
+                            leadingIcon = { Icon(imageVector = Icons.Default.Badge, contentDescription = null, tint = RoyalPurple) },
                             singleLine = true,
+                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .testTag("admin_dialog_userid"),
@@ -421,20 +507,31 @@ fun AppLoginGateScreen(
 
                         // Password Input
                         OutlinedTextField(
-                            value = adminPasswordInput,
-                            onValueChange = { adminPasswordInput = it },
+                            value = staffPasswordInput,
+                            onValueChange = { staffPasswordInput = it },
                             label = { Text("Password") },
-                            leadingIcon = { Icon(imageVector = Icons.Default.Lock, contentDescription = null) },
+                            leadingIcon = { Icon(imageVector = Icons.Default.Lock, contentDescription = null, tint = RoyalPurple) },
                             trailingIcon = {
-                                IconButton(onClick = { isAdminPassVisible = !isAdminPassVisible }) {
+                                IconButton(onClick = { isStaffPassVisible = !isStaffPassVisible }) {
                                     Icon(
-                                        imageVector = if (isAdminPassVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                                        imageVector = if (isStaffPassVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
                                         contentDescription = "Toggle Password"
                                     )
                                 }
                             },
-                            visualTransformation = if (isAdminPassVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                            visualTransformation = if (isStaffPassVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
+                            keyboardActions = KeyboardActions(onDone = {
+                                keyboardController?.hide()
+                                focusManager.clearFocus()
+                                val success = onLoginStaff(staffIdInput, staffPasswordInput)
+                                if (success) {
+                                    showStaffDialog = false
+                                    Toast.makeText(context, "Staff Authenticated!", Toast.LENGTH_SHORT).show()
+                                } else {
+                                    staffErrorMsg = "Invalid Login ID or Password. Check with Admin."
+                                }
+                            }),
                             singleLine = true,
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -442,7 +539,7 @@ fun AppLoginGateScreen(
                             shape = RoundedCornerShape(12.dp)
                         )
 
-                        adminErrorMsg?.let { err ->
+                        staffErrorMsg?.let { err ->
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
                                 text = err,
@@ -458,7 +555,11 @@ fun AppLoginGateScreen(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.End
                         ) {
-                            TextButton(onClick = { showAdminDialog = false }) {
+                            TextButton(onClick = {
+                                keyboardController?.hide()
+                                focusManager.clearFocus()
+                                showStaffDialog = false
+                            }) {
                                 Text("Cancel", color = Color.Gray)
                             }
 
@@ -466,19 +567,21 @@ fun AppLoginGateScreen(
 
                             Button(
                                 onClick = {
-                                    val success = onLoginAdmin(adminIdInput, adminPasswordInput)
+                                    keyboardController?.hide()
+                                    focusManager.clearFocus()
+                                    val success = onLoginStaff(staffIdInput, staffPasswordInput)
                                     if (success) {
-                                        showAdminDialog = false
-                                        Toast.makeText(context, "Admin Authenticated!", Toast.LENGTH_SHORT).show()
+                                        showStaffDialog = false
+                                        Toast.makeText(context, "Staff Authenticated!", Toast.LENGTH_SHORT).show()
                                     } else {
-                                        adminErrorMsg = "Invalid Admin ID or Password!"
+                                        staffErrorMsg = "Invalid Login ID or Password. Check with Admin."
                                     }
                                 },
                                 colors = ButtonDefaults.buttonColors(containerColor = RoyalPurple),
                                 shape = RoundedCornerShape(16.dp),
                                 modifier = Modifier.testTag("admin_dialog_login_btn")
                             ) {
-                                Text("LOGIN AS ADMIN")
+                                Text("SIGN IN TO PORTAL")
                             }
                         }
                     }

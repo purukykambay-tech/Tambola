@@ -70,6 +70,8 @@ fun TambolaTicketCard(
     onToggleMark: (Int) -> Unit,
     onClaimPrize: (ClaimType) -> Unit,
     claimedPrizes: Map<ClaimType, String> = emptyMap(),
+    isAutoDabEnabled: Boolean = false,
+    onToggleAutoDab: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val allNumbers = ticket.getAllNumbers()
@@ -111,6 +113,27 @@ fun TambolaTicketCard(
                         style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                         color = MaterialTheme.colorScheme.onSurface
                     )
+
+                    if (isAutoDabEnabled) {
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = EmeraldGreen,
+                            modifier = Modifier.testTag("ticket_auto_dab_badge_${ticket.id}")
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "⚡ AUTO-DAB ON",
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = Color.White
+                                )
+                            }
+                        }
+                    }
                 }
 
                 Surface(
